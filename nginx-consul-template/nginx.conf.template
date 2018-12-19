@@ -1,0 +1,37 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    sendfile on;
+
+    log_format  log  '[$time_local] user-ip: $http_x_real_ip - '
+                     'remote-address: $remote_addr - '
+                     'response-code: $status - '
+                     'request: "$request" - '
+                     'fordwarded-for: "$http_x_forwarded_for"';
+
+    access_log /dev/stdout log;
+    error_log /dev/stdout;
+
+    upstream consul-template-upstream {
+		{{range service "micro-service"}}server {{.Address}}:{{.Port}} max_fails=3 fail_timeout=60 weight=1;
+		{{else}}server 127.0.0.1:65535;{{end}}
+    }
+
+    server {
+        listen 8080;
+
+        location = /healthcheck {
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $http_x_real_ip;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+            proxy_redirect     off;
+            rewrite /healthcheck /api/v1/healthcheck break;
+            proxy_pass http://consul-template-upstream;
+        }
+    }
+}
