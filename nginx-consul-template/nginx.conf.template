@@ -17,8 +17,8 @@ http {
     error_log /dev/stdout;
 
     upstream consul-template-upstream {
-		{{range service "micro-service"}}server {{.Address}}:{{.Port}} max_fails=3 fail_timeout=60 weight=1;
-		{{else}}server 127.0.0.1:65535;{{end}}
+        {{range service "micro-service"}}server {{.Address}}:{{.Port}} max_fails=3 fail_timeout=60 weight={{if eq (index .ServiceMeta "weight") ""}}1{{else}}{{index .ServiceMeta "weight"}}{{end}};
+        {{else}}server 127.0.0.1:65535;{{end}}
     }
 
     server {
